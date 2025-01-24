@@ -6,6 +6,10 @@ import {
   View,
 } from 'react-native';
 import { Button } from '../components/Button';
+import { GithubAccount } from '../Content';
+import { useNavigation } from '@react-navigation/native';
+import { NavigationParams } from '../navigation';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const client_id = "Your clientID goes here";
 const client_secret = "Your client secret goes here";
@@ -13,6 +17,9 @@ const client_secret = "Your client secret goes here";
 const Login = (): JSX.Element => {
   const [authCode, setAuthCode] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [profile, setProfile] = useState<GithubAccount>();
+
+  const navigation = useNavigation<NativeStackNavigationProp<NavigationParams>>();
 
   const handleAuthorization = useCallback(async () => {
     const urlBase = "https://github.com/login/oauth/authorize";
@@ -58,6 +65,21 @@ const Login = (): JSX.Element => {
     });
   }, []);
 
+  const handleAPIFetch = useCallback(() => {
+    fetch("https://api.github.com/user", {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        "Authorization": `token ${accessToken}`
+      },
+    }).then(response => {
+      response.json().then(res => {
+        setProfile(res);
+      });
+    });
+  }, [accessToken, authCode]);
+
   useEffect(() => {
     Linking.addEventListener('url', ({ url }) => {
       const temporaryToken = url.split("?")[1].split("=")[1];
@@ -69,6 +91,12 @@ const Login = (): JSX.Element => {
     }
   }, [setAuthCode, requestAccess]);
 
+  useEffect(() => {
+    if (authCode && accessToken) {
+      handleAPIFetch();
+    }
+  }, [authCode, accessToken]);
+
   return (
     <View style={styles.mainContainer}>
       <Button onPress={handleAuthorization} title='Authorize'/>
@@ -78,6 +106,9 @@ const Login = (): JSX.Element => {
         <Text>Access token is:</Text>
         <Text>{accessToken}</Text>
       </View>
+      {authCode && accessToken && profile ? <Button onPress={() => {
+          navigation.navigate('Profile', profile);
+        }} title="Log in" /> : null}
     </View>
   );
 }
