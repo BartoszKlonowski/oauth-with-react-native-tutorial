@@ -8,6 +8,7 @@ import {
 import { Button } from '../components/Button';
 
 const client_id = "Your clientID goes here";
+const client_secret = "Your client secret goes here";
 
 const Login = (): JSX.Element => {
   const [authCode, setAuthCode] = useState("");
@@ -32,15 +33,41 @@ const Login = (): JSX.Element => {
     await Linking.openURL(reqUrl);
   }, []);
 
+  const requestAccess = useCallback((token: string) => {
+    fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: client_id,
+        client_secret: client_secret,
+        response_type: "token",
+        code: token,
+        redirect_uri: "OAuthWithReactNativeTutorial://code"
+      }),
+    }).then((response) => {
+      response.json().then(res => {
+        setAccessToken(res.access_token);
+      }).catch(error => {
+        console.log("cant open response - parsing error: ", error);
+      });
+    }).catch(error => {
+      console.log("Access token fetching error: ", error);
+    });
+  }, []);
+
   useEffect(() => {
     Linking.addEventListener('url', ({ url }) => {
       const temporaryToken = url.split("?")[1].split("=")[1];
       setAuthCode(temporaryToken);
+      requestAccess(temporaryToken);
     });
     return () => {
       Linking.removeAllListeners('url');
     }
-  }, [setAuthCode]);
+  }, [setAuthCode, requestAccess]);
 
   return (
     <View style={styles.mainContainer}>
